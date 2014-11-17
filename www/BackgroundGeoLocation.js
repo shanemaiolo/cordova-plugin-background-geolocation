@@ -23,12 +23,14 @@ module.exports = {
             notificationText    = config.notificationText || "ENABLED";
             activityType        = config.activityType || "OTHER";
             stopOnTerminate     = config.stopOnTerminate || false;
+            locationKey         = config.locationKey || '';
+            locationTemplate    = config.locationTemplate || '';
 
         exec(success || function() {},
              failure || function() {},
              'BackgroundGeoLocation',
              'configure',
-             [params, headers, url, stationaryRadius, distanceFilter, locationTimeout, desiredAccuracy, debug, notificationTitle, notificationText, activityType, stopOnTerminate]
+             [params, headers, url, stationaryRadius, distanceFilter, locationTimeout, desiredAccuracy, debug, notificationTitle, notificationText, activityType, stopOnTerminate, locationKey, locationTemplate]
         );
     },
     start: function(success, failure, config) {

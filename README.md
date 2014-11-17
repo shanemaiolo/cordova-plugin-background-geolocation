@@ -71,20 +71,22 @@ A full example could be:
     bgGeo.configure(callbackFn, failureFn, {
         url: 'http://only.for.android.com/update_location.json', // <-- Android ONLY:  your server url to send locations to
         params: {
-            auth_token: 'user_secret_auth_token',    //  <-- Android ONLY:  HTTP POST params sent to your server when persisting locations.
-            foo: 'bar'                              //  <-- Android ONLY:  HTTP POST params sent to your server when persisting locations.
+            auth_token: 'user_secret_auth_token',       // <-- Android ONLY:  HTTP POST params sent to your server when persisting locations.
+            foo: 'bar'                                  // <-- Android ONLY:  HTTP POST params sent to your server when persisting locations.
         },
-        headers: {                                   // <-- Android ONLY:  Optional HTTP headers sent to your configured #url when persisting locations
+        headers: {                                      // <-- Android ONLY:  Optional HTTP headers sent to your configured #url when persisting locations
             "X-Foo": "BAR"
         },
         desiredAccuracy: 10,
         stationaryRadius: 20,
         distanceFilter: 30,
-        notificationTitle: 'Background tracking', // <-- android only, customize the title of the notification
-        notificationText: 'ENABLED', // <-- android only, customize the text of the notification
+        notificationTitle: 'Background tracking',       // <-- Android ONLY:  customize the title of the notification
+        notificationText: 'ENABLED',                    // <-- Android ONLY:  customize the text of the notification
         activityType: 'AutomotiveNavigation',
-        debug: true, // <-- enable this hear sounds for background-geolocation life-cycle.
-        stopOnTerminate: false // <-- enable this to clear background location settings when the app terminates
+        debug: true,                                    // <-- Enable this hear sounds for background-geolocation life-cycle.
+        stopOnTerminate: false,                         // <-- Enable this to clear background location settings when the app terminates
+        locationKey: 'location',                        // <-- Android ONLY:  The key used in params for the location object
+        locationTemplate: "jsontokener_valid_string"    // <-- Android ONLY:  A JSONTokener (RFC 4627) encoded string that uses {{}} for token substitution
     });
 
     // Turn ON the background-geolocation system.  The user will be tracked whenever they suspend the app.
@@ -204,9 +206,46 @@ Optional HTTP headers POSTed to your server when persisting locations
 
 On Android devices it is required to have a notification in the drawer because it's a "foreground service".  This gives it high priority, decreasing probability of OS killing it.  To customize the title and text of the notification, set these options.
 
-#####`@param {Integer} locationTimeout
+#####`@param {Integer} locationTimeout`
 
 The minimum time interval between location updates, in seconds.  See [Android docs](http://developer.android.com/reference/android/location/LocationManager.html#requestLocationUpdates(long,%20float,%20android.location.Criteria,%20android.app.PendingIntent)) for more information.
+
+#####`@param {String} locationKey`
+
+The key used in the params for the location object, default is 'location'.
+
+#####`@param {String} locationTemplate`
+
+A JSONTokener (RFC 4627) encoded string, see [Android docs](https://developer.android.com/reference/org/json/JSONTokener.html) for more information.
+
+Use {{}} for token substitution. Valid tokens include: latitude, longitude, accuracy, speed, bearing, altitude and recorded_at
+
+The default locationTemplate is used when a template is not supplied. It is structured as follows:
+
+```
+"{
+  \"latitude\": \"{{latitude}}\",
+  \"longitude\": \"{{longitude}}\",
+  \"accuracy\": \"{{accuracy}}\",
+  \"speed\": \"{{speed}}\",
+  \"bearing\": \"{{bearing}}\",
+  \"altitude\": \"{{altitude}}\",
+  \"recorded_at\": {{recorded_at}}
+}"
+```
+
+An example using GeoJSON Point and a prepopulated value (uuid) from the device. See [GeoJSON Specification](http://geojson.org) for more information.
+
+```
+"{
+  \"uuid\" : \"123456789\",
+  \"location\" : {
+    \"type\" : \"Point\",
+    \"coordinates\" : [{{longitude}}, {{latitude}}],
+    \"recorded_at\": {{recorded_at}}
+  }
+}"
+```
 
 ### iOS Config
 

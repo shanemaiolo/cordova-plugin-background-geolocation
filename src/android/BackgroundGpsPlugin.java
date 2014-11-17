@@ -34,6 +34,8 @@ public class BackgroundGpsPlugin extends CordovaPlugin {
     private String notificationTitle = "Background tracking";
     private String notificationText = "ENABLED";
     private String stopOnTerminate = "false";
+    private String locationKey = "location";
+    private String locationTemplate = "{\"latitude\": \"{{latitude}}\", \"longitude\": \"{{longitude}}\", \"accuracy\": \"{{accuracy}}\", \"speed\": \"{{speed}}\", \"bearing\": \"{{bearing}}\", \"altitude\": \"{{altitude}}\", \"recorded_at\": {{recorded_at}} }";
 
     public boolean execute(String action, JSONArray data, CallbackContext callbackContext) {
         Activity activity = this.cordova.getActivity();
@@ -58,6 +60,8 @@ public class BackgroundGpsPlugin extends CordovaPlugin {
                 updateServiceIntent.putExtra("notificationTitle", notificationTitle);
                 updateServiceIntent.putExtra("notificationText", notificationText);
                 updateServiceIntent.putExtra("stopOnTerminate", stopOnTerminate);
+                updateServiceIntent.putExtra("locationKey", locationKey);
+                updateServiceIntent.putExtra("locationTemplate", locationTemplate);
 
                 activity.startService(updateServiceIntent);
                 isEnabled = true;
@@ -71,8 +75,8 @@ public class BackgroundGpsPlugin extends CordovaPlugin {
             result = true;
             try {
                 // Params.
-                //    0       1       2           3               4                5               6            7           8                9               10              11
-                //[params, headers, url, stationaryRadius, distanceFilter, locationTimeout, desiredAccuracy, debug, notificationTitle, notificationText, activityType, stopOnTerminate]
+                //    0       1       2           3               4                5               6            7           8                9               10              11             12              13
+                //[params, headers, url, stationaryRadius, distanceFilter, locationTimeout, desiredAccuracy, debug, notificationTitle, notificationText, activityType, stopOnTerminate, locationKey, locationTemplate]
                 this.params = data.getString(0);
                 this.headers = data.getString(1);
                 this.url = data.getString(2);
@@ -84,6 +88,15 @@ public class BackgroundGpsPlugin extends CordovaPlugin {
                 this.notificationTitle = data.getString(8);
                 this.notificationText = data.getString(9);
                 this.stopOnTerminate = data.getString(11);
+
+                if(data.getString(12) != null && !data.getString(12).isEmpty()) {
+                    this.locationKey =  data.getString(12);
+                }
+
+                if(data.getString(13) != null && !data.getString(13).isEmpty()) {
+                    this.locationTemplate = data.getString(13);
+                }
+
             } catch (JSONException e) {
                 callbackContext.error("authToken/url required as parameters: " + e.getMessage());
             }

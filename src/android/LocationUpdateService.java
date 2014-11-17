@@ -8,6 +8,7 @@ import org.apache.http.client.methods.HttpPost;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.DefaultHttpClient;
 import org.json.JSONException;
+import org.json.JSONTokener;
 import org.json.JSONObject;
 
 import com.tenforwardconsulting.cordova.bgloc.data.DAOFactory;
@@ -54,6 +55,12 @@ import android.widget.Toast;
 
 import static java.lang.Math.*;
 
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 public class LocationUpdateService extends Service implements LocationListener {
     private static final String TAG = "LocationUpdateService";
     private static final String STATIONARY_REGION_ACTION        = "com.tenforwardconsulting.cordova.bgloc.STATIONARY_REGION_ACTION";
@@ -95,6 +102,8 @@ public class LocationUpdateService extends Service implements LocationListener {
     private String notificationTitle = "Background checking";
     private String notificationText = "ENABLED";
     private Boolean stopOnTerminate;
+    private String locationKey;
+    private String locationTemplate;
 
     private ToneGenerator toneGenerator;
 
@@ -147,7 +156,7 @@ public class LocationUpdateService extends Service implements LocationListener {
         //telephonyManager.listen(phoneStateListener, LISTEN_CELL_LOCATION);
         //
 
-        PowerManager pm         = (PowerManager) getSystemService(Context.POWER_SERVICE);
+        PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
         wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, TAG);
 
         wakeLock.acquire();
@@ -180,6 +189,8 @@ public class LocationUpdateService extends Service implements LocationListener {
             isDebugging = Boolean.parseBoolean(intent.getStringExtra("isDebugging"));
             notificationTitle = intent.getStringExtra("notificationTitle");
             notificationText = intent.getStringExtra("notificationText");
+            locationKey = intent.getStringExtra("locationKey");
+            locationTemplate = intent.getStringExtra("locationTemplate");
 
             // Build a Notification required for running service in foreground.
             Intent main = new Intent(this, BackgroundGpsPlugin.class);
@@ -210,6 +221,8 @@ public class LocationUpdateService extends Service implements LocationListener {
         Log.i(TAG, "- isDebugging: "        + isDebugging);
         Log.i(TAG, "- notificationTitle: "  + notificationTitle);
         Log.i(TAG, "- notificationText: "   + notificationText);
+        Log.i(TAG, "- locationKey: "        + locationKey);
+        Log.i(TAG, "- locationTemplate: "   + locationTemplate);
 
         this.setPace(false);
 
@@ -651,9 +664,60 @@ public class LocationUpdateService extends Service implements LocationListener {
         Log.d(TAG, "afterexecute " +  task.getStatus());
     }
 
+    private JSONObject processLocation(com.tenforwardconsulting.cordova.bgloc.data.Location location, LocationDAO dao) {
+        JSONObject result = null;
+
+        Map<String,String> tokens = new HashMap<String,String>();
+        tokens.put("latitude", location.getLatitude());
+        tokens.put("longitude", location.getLongitude());
+        tokens.put("accuracy", location.getAccuracy());
+        tokens.put("speed", location.getSpeed());
+        tokens.put("bearing", location.getBearing());
+        tokens.put("altitude", location.getAltitude());
+        tokens.put("recorded_at", dao.dateToString(location.getRecordedAt()));
+        // Log.d(TAG, "tokens " + tokens.toString());
+
+        String template = locationTemplate;
+        // Log.d(TAG, "template: " + template);
+
+        // Create pattern in the format of "{{(hello|world)}}"
+        StringBuilder regexBuilder = new StringBuilder();
+        regexBuilder.append("\\{\\{(");
+
+        Iterator<String> it = tokens.keySet().iterator();
+        regexBuilder.append(it.next());
+        while (it.hasNext()) {
+            regexBuilder.append('|').append(it.next());
+        }
+
+        regexBuilder.append(")\\}\\}");
+        // Log.d(TAG, "regexBuilder: " + regexBuilder.toString());
+
+        // Process pattern matcher for template and create object
+        Pattern pattern = Pattern.compile(regexBuilder.toString());
+        Matcher matcher = pattern.matcher(template);
+
+        StringBuffer sb = new StringBuffer();
+        while(matcher.find()) {
+            matcher.appendReplacement(sb, tokens.get(matcher.group(1)));
+        }
+        matcher.appendTail(sb);
+        // Log.d(TAG, "sb: " + sb.toString());
+
+        try {
+            result = (JSONObject) new JSONTokener(sb.toString()).nextValue();
+            // Log.d(TAG, "result: " + result.toString());
+        } catch (JSONException e) {
+            // Log.d(TAG, "result exception: ");
+            e.printStackTrace();
+        }
+
+        return result;
+    }
+
     private boolean postLocation(com.tenforwardconsulting.cordova.bgloc.data.Location l, LocationDAO dao) {
         if (l == null) {
-            Log.w(TAG, "postLocation: null location");
+            // Log.w(TAG, "postLocation: null location");
             return false;
         }
         try {
@@ -662,17 +726,17 @@ public class LocationUpdateService extends Service implements LocationListener {
             DefaultHttpClient httpClient = new DefaultHttpClient();
             HttpPost request = new HttpPost(url);
 
-            JSONObject location = new JSONObject();
-            location.put("latitude", l.getLatitude());
-            location.put("longitude", l.getLongitude());
-            location.put("accuracy", l.getAccuracy());
-            location.put("speed", l.getSpeed());
-            location.put("bearing", l.getBearing());
-            location.put("altitude", l.getAltitude());
-            location.put("recorded_at", dao.dateToString(l.getRecordedAt()));
-            params.put("location", location);
+            JSONObject location = processLocation(l, dao);
 
-            Log.i(TAG, "location: " + location.toString());
+            if(location == null) {
+                // Log.w(TAG, "postLocation: processLocation returned null location");
+                return false;
+            }
+
+            // Log.i(TAG, "location: " + location.toString());
+
+            params.put(locationKey, location);
+            // Log.i(TAG, "params: " + params.toString());
 
             StringEntity se = new StringEntity(params.toString());
             request.setEntity(se);
@@ -681,11 +745,11 @@ public class LocationUpdateService extends Service implements LocationListener {
 
             Iterator<String> headkeys = headers.keys();
             while( headkeys.hasNext() ){
-        String headkey = headkeys.next();
-        if(headkey != null) {
+                String headkey = headkeys.next();
+                if(headkey != null) {
                     Log.d(TAG, "Adding Header: " + headkey + " : " + (String)headers.getString(headkey));
                     request.setHeader(headkey, (String)headers.getString(headkey));
-        }
+                }
             }
             Log.d(TAG, "Posting to " + request.getURI().toString());
             HttpResponse response = httpClient.execute(request);
