@@ -230,7 +230,7 @@ The default locationTemplate is used when a template is not supplied. It is stru
   \"speed\": \"{{speed}}\",
   \"bearing\": \"{{bearing}}\",
   \"altitude\": \"{{altitude}}\",
-  \"recorded_at\": {{recorded_at}}
+  \"recorded_at\": \"{{recorded_at}}\"
 }"
 ```
 
@@ -242,7 +242,7 @@ An example using GeoJSON Point and a prepopulated value (uuid) from the device. 
   \"location\" : {
     \"type\" : \"Point\",
     \"coordinates\" : [{{longitude}}, {{latitude}}],
-    \"recorded_at\": {{recorded_at}}
+    \"recorded_at\": \"{{recorded_at}}\"
   }
 }"
 ```
